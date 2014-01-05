@@ -1,14 +1,17 @@
 (defpackage :cl-prime-sieve
   (:use :common-lisp)
   (:export :sum-of-squares
-	   :get-prime-candidates-map
-	   :atkin-sieve
+	   :atkin-sieve-map
+           :eratosthene-sieve-map
 	   :get-primes))
 
 (in-package :cl-prime-sieve)
 
 (defun sum-of-squares(x y &key (a 1) (b 1))
   (+ (* a x x) (* b y y)))
+
+(deftype candidate() 
+  '(simple-array boolean (*)))
 
 ;; The macro has been specifically desgined to capture 
 ;; limit and candidates variables within the caller.
@@ -22,10 +25,12 @@
 
 (defun get-atkin-prime-candidates-map(limit)
   (let* ((lmt (isqrt limit))
-	 (candidates (make-array (1+ limit) :initial-element nil))
-	 (stage1 (get-sieve-function 4 1 '(1 5)))
-	 (stage2 (get-sieve-function 3 1 '(7)))
-	 (stage3 (get-sieve-function 3 -1 '(11))))
+         (candidates (make-array (1+ limit) :initial-element nil))
+         (stage1 (get-sieve-function 4 1 '(1 5)))
+         (stage2 (get-sieve-function 3 1 '(7)))
+         (stage3 (get-sieve-function 3 -1 '(11))))
+    (declare (type candidate candidates))
+    (declare (optimize (speed 3)))
     (loop for x from 1 to lmt do
 	 (loop for y from 1 to lmt do
 	      (progn
@@ -35,7 +40,7 @@
 		  (funcall stage3 x y)))))
     candidates))
 
-(defun atkin-sieve(candidates)
+(defun atkin-sieve-map(candidates)
   (let ((len (length candidates)))
     (loop for i from 1 to (1- len)
        when (aref candidates i)
@@ -47,8 +52,10 @@
   (setf (aref candidates 3) T)
   candidates)
 
-(defun eratosthene-sieve(limit)
+(defun eratosthene-sieve-map(limit)
   (let ((candidates (make-array (1+ limit) :initial-element T)))
+    (declare (type candidate candidates))
+    (declare (optimize (speed 3)))
     (progn
       (setf (aref candidates 0) nil)
       (setf (aref candidates 1) nil))
@@ -62,9 +69,10 @@
 (defun get-primes(limit &key (generator :eratosthene))
   (let ((candidates 
 	 (case generator
-	   (:atkin (atkin-sieve (get-atkin-prime-candidates-map limit)))
-	   (:eratosthene (eratosthene-sieve limit))
+	   (:atkin (atkin-sieve-map (get-atkin-prime-candidates-map limit)))
+	   (:eratosthene (eratosthene-sieve-map limit))
 	   (otherwise (error "Invalid generator type provided, valid type (:atkin :eratosthene)")))))
+    (declare (type candidate candidates))
     (loop for i from 0 to (1- (length candidates))
        when (aref candidates i)
        collect i)))
